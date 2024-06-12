@@ -1,0 +1,12 @@
+names:
+- nutrition-label
+nc: 1
+roboflow:
+  license: CC BY 4.0
+  project: capstone-foodlabel
+  url: https://universe.roboflow.com/personal-c0vlg/capstone-foodlabel/dataset/4
+  version: 4
+  workspace: personal-c0vlg
+train: ../machine-learning-kaisar/datasets/train/images
+val: ../machine-learning-kaisar/datasets/valid/images
+test: ../machine-learning-kaisar/datasets/test/images
