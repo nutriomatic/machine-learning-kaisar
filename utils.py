@@ -6,9 +6,17 @@ from ultralytics import YOLO
 import cv2
 from PIL import Image, ImageEnhance
 import numpy as np
+import pytesseract
+import itertools
 
 
-def crop(image, coord: tuple, padding=0):
+def ocr(image, psm=11):
+    TESSDATA_DIR = os.getenv("TESSDATA_DIR")
+    config = rf"--tessdata-dir {TESSDATA_DIR} --psm {psm} --oem 1"
+    return pytesseract.image_to_string(image, lang="ind", config=config)
+
+
+def cropAndResize(image, coord: tuple, padding=0):
     img_width = image.shape[1]
     img_height = image.shape[0]
 
@@ -23,10 +31,20 @@ def crop(image, coord: tuple, padding=0):
     }
 
     # return cropped image
-    return image[
+    cropped = image[
         modified_coordinates["y1"] : modified_coordinates["y2"],
         modified_coordinates["x1"] : modified_coordinates["x2"],
     ]
+
+    return cv2.resize(
+        cropped,
+        (
+            abs(modified_coordinates["x2"] - modified_coordinates["x1"]),
+            abs(modified_coordinates["y2"] - modified_coordinates["y1"]),
+        ),
+        fx=0.1,
+        fy=0.1,
+    )
 
 
 def preprocess_for_ocr(img, enhance=1):
@@ -41,9 +59,11 @@ def preprocess_for_ocr(img, enhance=1):
 
     # img = cv2.fastNlMeansDenoisingColored(img, None, 10, 10, 7, 15)
 
-    # img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+
+    # img = remove_lines(img)
 
     # img = cv2.GaussianBlur(img, (5, 5), 0)
 
@@ -63,8 +83,11 @@ def make_list(file_path):
     return temp_list
 
 
+# convert OCR readings to nutritional dictionary
 def to_nutritional_dict(label_value_list: list):
     nutritional_dict = {
+        "sajian": [],
+        "energi": [],
         "karbohidrat": [],
         "gula": [],
         "protein": [],
@@ -77,12 +100,22 @@ def to_nutritional_dict(label_value_list: list):
         "mineral": [],
     }
 
-    for label, value in label_value_list:
+    for label, valueWithUnit in label_value_list:
         label = label.lower()
-        value, unit = value
 
-        if value <= 0:
+        if type(valueWithUnit) == float:
             continue
+
+        if type(valueWithUnit) == str:
+            continue
+
+        value, unit = valueWithUnit
+
+        if ("sajian" in label) or ("serving" in label):
+            nutritional_dict["sajian"].append((value, unit))
+
+        if ("energi" in label) or ("energy" in label):
+            nutritional_dict["energi"].append((value, unit))
 
         if ("karbohidrat" in label) or ("carbohydrate" in label):
             nutritional_dict["karbohidrat"].append((value, unit))
@@ -136,9 +169,17 @@ def get_model(path: str):
 
 # get bounding boxes from prediction result
 def get_bounding_boxes(prediction: list, withSize=False):
-    nutrition_label = prediction[0]  # assume only one prediction
+    assert (
+        len(prediction) == 1
+    ), "There should only be one prediction"  # assume only one prediction
+
+    nutrition_label = prediction[0]
 
     # get coordinates of four bounding box corners
+    assert (
+        len(nutrition_label.boxes.xyxy.tolist()) == 1
+    ), "No prediction found, please dont rotate your image"
+
     x1, y1, x2, y2 = nutrition_label.boxes.xyxy.tolist()[0]
 
     width = abs(x2 - x1)  # width can be calculated as abs(x2 - x1)
@@ -153,75 +194,88 @@ def get_bounding_boxes(prediction: list, withSize=False):
 # one of the most common OCR error of returning '9' in
 # place of 'g' is being handled by this function
 def change_to_g(text):
-    search_ln = re.search("\d\s|\d$", text)
-    if search_ln and search_ln.group().strip() == "9":
-        index = search_ln.span()[0]
-        text = text[:index] + "g" + text[index + 1 :]
+    """
+    Modifies a string by replacing standalone '9' at the end of digit sequences with 'g'.
 
-    search_lnq = re.search("\dmq\s|\dmq$", text)
-    if search_lnq:
-        index = search_lnq.span()[0] + 2
-        text = text[:index] + "g" + text[index + 1 :]
-    return text
+    Args:
+        text (str): The input string from OCR.
+
+    Returns:
+        str: The modified string with '9' -> 'g' conversions.
+    """
+
+    # Regex Pattern Explanation:
+    # \b: Word boundary (ensures digits are standalone)
+    # \d+: One or more digits
+    # 9\b: Digit '9' at a word boundary
+    # (?![\S\d]): Negative lookahead, ensures no non-whitespace or digits follow
+
+    pattern = r"\d+9(?!\d)\b"  # Or without word boundary: r"\d+9(?!\d)"
+    return re.sub(pattern, lambda match: match.group().replace("9", "g"), text)
+
+
+# another common OCR error of returning 'x' in
+# place of '%' is being handled by this function
+def change_to_percentage(text):
+    """
+    Modifies a string by replacing standalone 'x' at the end of digit sequences with '%'.
+
+    Args:
+        text (str): The input string from OCR.
+
+    Returns:
+        str: The modified string with 'x' -> '%' conversions.
+    """
+
+    # Regex Pattern Explanation:
+    # \b: Word boundary (ensures digits are standalone)
+    # \d+: One or more digits
+    # x\b: Digit 'x' at a word boundary
+    # (?![\S\d]): Negative lookahead, ensures no non-whitespace or digits follow
+
+    pattern = r"\d+x(?!\d)\b"  # Or without word boundary: r"\d+x(?!\d)"
+    return re.sub(
+        pattern, lambda match: match.group().replace("x", "%").replace("X", "%"), text
+    )
 
 
 # removes all the unnecessary noise from a string
 def clean_string(string):
     pattern = "[\|\*\_'\—\-\{}]".format('"')
-    text = re.sub(pattern, "", string)
+
+    text = change_to_g(string)
+    text = change_to_percentage(text)
+
+    text = re.sub(pattern, "", text)
+
+    text = change_to_g(text)
+    text = change_to_percentage(text)
+
     text = re.sub(" I ", " / ", text)
     text = re.sub("^I ", "", text)
+
     text = re.sub("Omg", "0mg", text)
+    text = re.sub("omg", "0g", text)
     text = re.sub("Og", "0g", text)
+    text = re.sub("og", "0g", text)
     text = re.sub("Okcal", "0kcal", text)
     text = re.sub("Okkal", "0kkal", text)
+
     text = re.sub("(?<=\d) (?=\w)", "", text)
     text = change_to_g(text)
+
     text = text.strip()
     return text
-
-
-# check whether a nutritional label is present in the
-# string or not
-def check_for_label(text, words):
-    # text = text.lower()
-    for i in range(len(text)):
-        if any(text[i:].startswith(word) for word in words):
-            return True
-    return False
-
-
-# separate the value and its label from the string
-def get_label_from_string(string):
-    label_arr = re.findall("([A-Z][a-zA-Z]*)", string)
-    label_name = ""
-    label_value = ""
-
-    if len(label_arr) == 0:
-        label_name = "|" + string + "|"
-    elif len(label_arr) == 1:
-        label_name = label_arr[0]
-    else:
-        label_name = label_arr[0] + " " + label_arr[1]
-
-    digit_pattern = "[-+]?\d*\.\d+|\d+"  # Removed "g" from the digit pattern
-    value_arr = re.findall(
-        rf"({digit_pattern}\s*(g|%|J|kJ|mg|kcal|kkal|mcg|IU))", string
-    )
-    if len(value_arr):
-        label_value, _ = value_arr[0]
-        label_value = label_value.replace(" ", "")
-    else:
-        label_value = "|" + string + "|"
-    return label_name, label_value
 
 
 # separate the unit from its value. (eg. '24g' to '24' and 'g')
 def separate_unit(string):
     r1 = re.compile("(\d+[\.\,']?\d*)([a-zA-Z]+)")
     m1 = r1.match(string)
+
     r2 = re.compile("(\d+[\.\,']?\d*)")
     m2 = r2.match(string)
+
     if m1:
         return (float(m1.group(1).replace(",", ".").replace("'", ".")), m1.group(2))
     elif m2:
@@ -245,3 +299,66 @@ def download_dataset(
     )
 
     return
+
+
+def preprocess_ocr_reading(ocr_reading: str):
+    cleaned_data = []
+
+    for data in ocr_reading.split("\n"):
+        data = clean_string(data)
+
+        if data == "":
+            continue
+
+        cleaned_data.append(data)
+
+    return cleaned_data
+
+
+# get relevant nutritional value in OCR readings
+def get_nutrient_label_value(reading: list, nutrients_list: list):
+    nutrient_value = []
+
+    for line in reading:
+        for nutrient in nutrients_list:
+            if nutrient.lower() in line.lower():
+                valueIdx = reading.index(line)
+                value = reading[valueIdx]
+                label = separate_unit(clean_string(reading[valueIdx + 1]))
+
+                nutrient_value.append([value, label])
+
+    nutrient_value.sort()
+    nutrient_value = list(
+        nutrient_value for nutrient_value, _ in itertools.groupby(nutrient_value)
+    )
+
+    return nutrient_value
+
+
+def extract_and_modify(input_str):
+    """Extracts values with units and modifies the input string."""
+
+    pattern = r"\b(\d+\.?\d*)\s*([g%JkJmgkcalµgIU]+)\b"
+    matches = re.findall(pattern, input_str)
+    if len(matches) > 0:
+        extracted_values = [f"{value}{unit}" for value, unit in matches][0]
+    else:
+        extracted_values = ""
+
+    modified_input = re.sub(pattern, "", input_str).strip()
+    return modified_input, extracted_values
+
+
+def correct_readings(input):
+    # Process the OCR lines
+    input_copy = []
+    for line in input:
+        modified_input, extracted_values = extract_and_modify(clean_string(line[0]))
+        line[0] = modified_input
+        if extracted_values:  # Check if there are extracted values
+            line[1] = separate_unit(extracted_values)  # Take the extracted value
+
+        input_copy.append(line)
+
+    return input_copy
