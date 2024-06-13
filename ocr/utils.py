@@ -10,9 +10,8 @@ import pytesseract
 import itertools
 
 
-def ocr(image, psm=11):
-    TESSDATA_DIR = os.getenv("TESSDATA_DIR")
-    config = rf"--tessdata-dir {TESSDATA_DIR} --psm {psm} --oem 3"
+def ocr(image, tessdata_dir, psm=11):
+    config = rf'--tessdata-dir "{tessdata_dir}" --psm {psm} --oem 3'
     return pytesseract.image_to_string(image, lang="ind", config=config)
 
 
