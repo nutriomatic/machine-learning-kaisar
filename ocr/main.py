@@ -1,4 +1,6 @@
 import argparse  # to parse console arguments
+import json  # to prettify outputs
+
 from utils import *
 
 
@@ -25,7 +27,7 @@ def main(args):
         image_preprocessed = preprocess_for_ocr(image_cropped)
 
         # do the ocr
-        text_data = ocr(image_preprocessed)
+        text_data = ocr(image_preprocessed, args.tessdata_dir)
 
         # preprocess the OCR reading
         preprocessed_reading = preprocess_ocr_reading(text_data)
@@ -42,7 +44,15 @@ def main(args):
         corrected_readings = correct_readings(cleaned)
 
         # get and return final nutritional dictionary
-        return to_nutritional_dict(label_value_list=corrected_readings)
+        nutritional_dictionary = to_nutritional_dict(
+            label_value_list=corrected_readings
+        )
+
+        print("\n--- RESULT ---")
+        print(json.dumps(nutritional_dictionary, indent=2, sort_keys=True))
+        print("--- END ---")
+
+        return nutritional_dictionary
 
     except FileNotFoundError:
         print(f"Error: Image not found at '{args.image_path}'")
@@ -68,6 +78,12 @@ if __name__ == "__main__":
         "--nutrients_txt_path",
         default="./data/nutrients.txt",
         help="Path to the nutrients list file",
+    )
+
+    parser.add_argument(
+        "--tessdata_dir",
+        default="./data/tessdata",
+        help="Path config for TESSDATA_DIR",
     )
 
     args = parser.parse_args()
