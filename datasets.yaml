@@ -7,6 +7,6 @@ roboflow:
   url: https://universe.roboflow.com/personal-c0vlg/capstone-foodlabel/dataset/4
   version: 4
   workspace: personal-c0vlg
-train: ../machine-learning-kaisar/datasets/train/images
-val: ../machine-learning-kaisar/datasets/valid/images
-test: ../machine-learning-kaisar/datasets/test/images
+train: ../machine-learning-kaisar/data/datasets/train/images
+val: ../machine-learning-kaisar/data/datasets/valid/images
+test: ../machine-learning-kaisar/data/datasets/test/images
