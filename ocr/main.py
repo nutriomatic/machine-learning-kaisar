@@ -1,5 +1,6 @@
 import argparse  # to parse console arguments
 import json  # to prettify outputs
+import os
 
 from utils import *
 
@@ -62,6 +63,11 @@ def main(args):
 
 
 if __name__ == "__main__":
+    dirname = os.path.dirname(os.path.realpath(__file__))
+    # run 'which tesseract'
+    # use the directory printed as tesseract_cmd directory
+    pytesseract.pytesseract.tesseract_cmd = "/opt/homebrew/bin/tesseract"
+
     parser = argparse.ArgumentParser(
         description="Extract nutrition information from an image."
     )
@@ -70,19 +76,19 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--model_path",
-        default="./models/detect-nutrition-label.pt",
+        default=os.path.join(dirname, "models/detect-nutrition-label.pt"),
         help="Path to the model file",
     )
 
     parser.add_argument(
         "--nutrients_txt_path",
-        default="./data/nutrients.txt",
+        default=os.path.join(dirname, "data/nutrients.txt"),
         help="Path to the nutrients list file",
     )
 
     parser.add_argument(
         "--tessdata_dir",
-        default="./data/tessdata",
+        default=os.path.join(dirname, "data/tessdata"),
         help="Path config for TESSDATA_DIR",
     )
 
