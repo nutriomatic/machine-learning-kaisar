@@ -236,6 +236,7 @@ fabric.properties
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
 
-# Datasets
-data/datasets
-data/tf-record-datasets
+# OCR Datasets and Training Results
+ocr/data/datasets
+ocr/data/tf-record-datasets
+ocr/runs/*
