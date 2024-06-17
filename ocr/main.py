@@ -64,7 +64,7 @@ def main(args):
 
 if __name__ == "__main__":
     dirname = os.path.dirname(os.path.realpath(__file__))
-    # run 'which tesseract'
+    # run 'which tesseract' (linux) or 'where tesseract' (windows)
     # use the directory printed as tesseract_cmd directory
     pytesseract.pytesseract.tesseract_cmd = "/opt/homebrew/bin/tesseract"
 

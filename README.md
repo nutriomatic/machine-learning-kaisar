@@ -1,2 +1,2 @@
-# OCR Part of Nutri-O-Matic
+# machine-learning-kaisar
 kuasa penuh repo dipegang oleh kaisar
