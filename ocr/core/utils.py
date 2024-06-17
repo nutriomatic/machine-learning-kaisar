@@ -2,7 +2,6 @@ import re
 import os
 from dotenv import load_dotenv
 from roboflow import Roboflow
-from ultralytics import YOLO
 import cv2
 from PIL import Image, ImageEnhance
 import numpy as np
@@ -162,24 +161,14 @@ def to_nutritional_dict(label_value_list: list):
     return nutritional_dict
 
 
-def get_model(path: str):
-    return YOLO(path)
-
-
 # get bounding boxes from prediction result
-def get_bounding_boxes(prediction: list, withSize=False):
+def get_bounding_boxes(prediction: list):
     if len(prediction) == 0:
         return 0, 0, 0, 0
 
     nutrition_label = prediction[0]  # assume only one prediction
 
     x1, y1, x2, y2 = nutrition_label.boxes.xyxy.tolist()[0]
-
-    width = abs(x2 - x1)  # width can be calculated as abs(x2 - x1)
-    height = abs(y2 - y1)  # height can be calculated as abs(y2 - y1)
-
-    if withSize:
-        return x1, y1, x2, y2, width, height
 
     return x1, y1, x2, y2
 
@@ -230,7 +219,7 @@ def change_to_percentage(text):
 
 # removes all the unnecessary noise from a string
 def clean_string(string):
-    pattern = "[\|\*\_'\—\-\{}]".format('"')
+    pattern = r"[\|\*\_'\—\-\{}]".format('"')
 
     text = change_to_g(string)
     text = change_to_percentage(text)
@@ -250,7 +239,7 @@ def clean_string(string):
     text = re.sub("Okcal", "0kcal", text)
     text = re.sub("Okkal", "0kkal", text)
 
-    text = re.sub("(?<=\d) (?=\w)", "", text)
+    text = re.sub(r"(?<=\d) (?=\w)", "", text)
 
     text = text.strip()
     return text
@@ -258,10 +247,10 @@ def clean_string(string):
 
 # separate the unit from its value. (eg. '24g' to '24' and 'g')
 def separate_unit(string):
-    r1 = re.compile("(\d+[\.\,']?\d*)([a-zA-Z]+)")
+    r1 = re.compile(r"(\d+[\.\,']?\d*)([a-zA-Z]+)")
     m1 = r1.match(string)
 
-    r2 = re.compile("(\d+[\.\,']?\d*)")
+    r2 = re.compile(r"(\d+[\.\,']?\d*)")
     m2 = r2.match(string)
 
     if m1:
