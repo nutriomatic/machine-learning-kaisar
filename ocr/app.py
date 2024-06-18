@@ -32,6 +32,8 @@ def ocr_endpoint():
         try:
             # read the image url, and convert to numpy array
             image = skimage.io.imread(image_url)
+            # convert to 3 channels (ignore the alpha)
+            image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGR)
         except Exception as e:
             # if error, return error
             return jsonify({"error": f"Image failed to load: {e}"}), 500
@@ -44,9 +46,12 @@ def ocr_endpoint():
 
             try:
                 # run the ocr
-                prediction = core_ocr(
-                    image, model, tessdata_dir, nutrients_txt_path, debug=True
-                )
+                try:
+                    prediction = core_ocr(
+                        image, model, tessdata_dir, nutrients_txt_path, debug=True
+                    )
+                except Exception as e:
+                    return jsonify({"error": "Something went wrong with the OCR! {e}"})
 
                 # return the successfully read nutrition labels
                 return jsonify(prediction)

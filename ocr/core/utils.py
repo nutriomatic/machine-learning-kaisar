@@ -361,9 +361,7 @@ def rotateImage(image, angle):
     MM = np.absolute(M[:, :2])
     size_new = MM @ size_reverse
     M[:, -1] += (size_new - size_reverse) / 2.0
-    return cv2.warpAffine(
-        cv2.cvtColor(image, cv2.COLOR_BGRA2BGR), M, tuple(size_new.astype(int))
-    )
+    return cv2.warpAffine(image, M, tuple(size_new.astype(int)))
 
 
 def add_element(dict, key, value):
@@ -373,16 +371,17 @@ def add_element(dict, key, value):
 
 
 def normalize_units(nutritional_dict: dict[str, list]):
+    # convert to g
     conversion_dict = {
-        "kkal": 129.59782,
-        "kcal": 129.59782,
-        "g": 1000,
-        "J": 238.90295761862,
-        "j": 238.90295761862,
-        "joule": 238.90295761862,
-        "Joule": 238.90295761862,
-        "kJ": 238902.95761862,
-        "kj": 238902.95761862,
+        "kkal": 0.12959782,
+        "kcal": 0.12959782,
+        "mg": 0.001,
+        "J": 0.23890295761862,
+        "j": 0.23890295761862,
+        "joule": 0.23890295761862,
+        "Joule": 0.23890295761862,
+        "kJ": 238.90295761862,
+        "kj": 238.90295761862,
         # add more
     }
 
