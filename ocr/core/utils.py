@@ -6,6 +6,7 @@ import cv2
 from PIL import Image, ImageEnhance
 import numpy as np
 import pytesseract
+from pytesseract import Output
 import itertools
 
 
@@ -345,3 +346,16 @@ def correct_readings(input):
         input_copy.append(line)
 
     return input_copy
+
+
+def detect_orientation(image):
+    results = pytesseract.image_to_osd(image, output_type=Output.DICT)
+    return results
+
+
+def rotateImage(image, angle):
+    row, col, channel = image.shape
+    center = tuple(np.array([row, col]) / 2)
+    rot_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
+    new_image = cv2.warpAffine(image, rot_mat, (col, row))
+    return new_image
