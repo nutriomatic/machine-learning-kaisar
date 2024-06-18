@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from core.main import core_ocr
 from core.utils import *
 import skimage
+import os
 
 # initialize the app
 app = Flask(__name__)

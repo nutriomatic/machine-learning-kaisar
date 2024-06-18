@@ -1,11 +1,6 @@
 Flask==3.0.3
 numpy==1.24.0
-opencv_contrib_python==4.10.0.82
-opencv_python==4.10.0.82
-opencv_python_headless==4.8.0.74
 Pillow==10.3.0
 pytesseract==0.3.10
-python-dotenv==1.0.1
-roboflow==1.1.32
 scikit-image==0.23.2
 ultralytics==8.2.31

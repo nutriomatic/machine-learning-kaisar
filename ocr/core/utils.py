@@ -1,7 +1,4 @@
 import re
-import os
-from dotenv import load_dotenv
-from roboflow import Roboflow
 import cv2
 from PIL import Image, ImageEnhance
 import numpy as np
@@ -267,21 +264,20 @@ def separate_unit(string):
         return ""
 
 
-# load roboflow project and download dataset to download_path
-def download_dataset(
-    download_path: str, project_name: str, version: int, model_format: str
-):
-    load_dotenv()
-    ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
+# # load roboflow project and download dataset to download_path
+# def download_dataset(
+#     download_path: str, project_name: str, version: int, model_format: str
+# ):
+#     load_dotenv()
 
-    rf = Roboflow(api_key=ROBOFLOW_API_KEY, model_format=model_format)
+#     rf = Roboflow(api_key=ROBOFLOW_API_KEY, model_format=model_format)
 
-    # this won't download when location folder isn't empty
-    rf.workspace().project(project_name).version(version).download(
-        location=download_path
-    )
+#     # this won't download when location folder isn't empty
+#     rf.workspace().project(project_name).version(version).download(
+#         location=download_path
+#     )
 
-    return
+#     return
 
 
 def preprocess_ocr_reading(ocr_reading: str):
