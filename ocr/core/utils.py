@@ -21,6 +21,11 @@ def cropAndResize(image, coord: tuple, padding=0):
 
     x1, y1, x2, y2 = coord
 
+    # if nutrition label detection model doesnt detect the nutrition label,
+    # dont crop the image
+    if (x1, y1, x2, y2) == (0, 0, 0, 0):
+        x1, y1, x2, y2 = 0, 0, img_width, img_height
+
     # if padding != 0, add a little bit of extra space around bounding box
     modified_coordinates = {
         "x1": int(x1 - padding * img_width),
@@ -357,5 +362,8 @@ def rotateImage(image, angle):
     row, col, channel = image.shape
     center = tuple(np.array([row, col]) / 2)
     rot_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
-    new_image = cv2.warpAffine(image, rot_mat, (col, row))
+    # make sure it has 3 channels for the nutrition label detection model
+    new_image = cv2.warpAffine(
+        cv2.cvtColor(image, cv2.COLOR_BGRA2BGR), rot_mat, (col, row)
+    )
     return new_image

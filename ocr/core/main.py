@@ -27,9 +27,6 @@ def core_ocr(image, model_path, tessdata_dir, nutrients_txt_path, debug=False):
         if debug:
             print(f"Prediction of nutrition label: {prediction}\n")
 
-        if len(prediction) == 0:
-            raise ValueError("Nutrition table not found in the image")
-
         x1, y1, x2, y2 = get_bounding_boxes(prediction)
         if debug:
             print(f"Position of bounding boxes: {x1, y1, x2, y2}\n")
