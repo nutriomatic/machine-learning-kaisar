@@ -75,6 +75,10 @@ def core_ocr(image, model_path, tessdata_dir, nutrients_txt_path, debug=False):
         if debug:
             print(f"End result: {nutritional_dictionary}")
 
+        nutritional_dictionary = normalize_units(nutritional_dictionary)
+        if debug:
+            print(f"End result normalized: {nutritional_dictionary}")
+
         return nutritional_dictionary
 
     except FileNotFoundError:

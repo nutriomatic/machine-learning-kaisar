@@ -363,3 +363,36 @@ def rotateImage(image, angle):
         cv2.cvtColor(image, cv2.COLOR_BGRA2BGR), rot_mat, (col, row)
     )
     return new_image
+
+
+def add_element(dict, key, value):
+    if key not in dict:
+        dict[key] = value
+    dict[key] += value
+
+
+def normalize_units(nutritional_dict: dict[str, list]):
+    conversion_dict = {
+        "kkal": 129.59782,
+        "kcal": 129.59782,
+        # add more
+    }
+
+    converted_dict = {}
+    keys = list(nutritional_dict.keys())
+    for nutritional_value_key in keys:
+        nutritional_value = nutritional_dict[nutritional_value_key]
+        agg_score = 0
+        for score, unit in nutritional_value:
+            # keep using kkal/kcal for energi
+            if nutritional_value_key != "energi" and unit.lower() in list(
+                conversion_dict.keys()
+            ):
+                agg_score += score * conversion_dict[unit]
+            else:
+                # assume its just mg for other than energy
+                agg_score += score
+
+        add_element(converted_dict, nutritional_value_key, agg_score)
+
+    return converted_dict
