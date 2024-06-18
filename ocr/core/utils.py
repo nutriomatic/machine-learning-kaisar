@@ -355,19 +355,18 @@ def detect_orientation(image):
 
 
 def rotateImage(image, angle):
-    row, col, channel = image.shape
-    center = tuple(np.array([row, col]) / 2)
-    rot_mat = cv2.getRotationMatrix2D(center, angle, 1.0)
-    # make sure it has 3 channels for the nutrition label detection model
-    new_image = cv2.warpAffine(
-        cv2.cvtColor(image, cv2.COLOR_BGRA2BGR), rot_mat, (col, row)
-    )
-    return new_image
+    # credits to https://stackoverflow.com/a/47248339
+    size_reverse = np.array(image.shape[1::-1])  # swap x with y
+    M = cv2.getRotationMatrix2D(tuple(size_reverse / 2.0), angle, 1.0)
+    MM = np.absolute(M[:, :2])
+    size_new = MM @ size_reverse
+    M[:, -1] += (size_new - size_reverse) / 2.0
+    return cv2.warpAffine(image, M, tuple(size_new.astype(int)))
 
 
 def add_element(dict, key, value):
     if key not in dict:
-        dict[key] = value
+        dict[key] = 0
     dict[key] += value
 
 
@@ -375,6 +374,13 @@ def normalize_units(nutritional_dict: dict[str, list]):
     conversion_dict = {
         "kkal": 129.59782,
         "kcal": 129.59782,
+        "g": 1000,
+        "J": 238.90295761862,
+        "j": 238.90295761862,
+        "joule": 238.90295761862,
+        "Joule": 238.90295761862,
+        "kJ": 238902.95761862,
+        "kj": 238902.95761862,
         # add more
     }
 
@@ -388,7 +394,7 @@ def normalize_units(nutritional_dict: dict[str, list]):
             if nutritional_value_key != "energi" and unit.lower() in list(
                 conversion_dict.keys()
             ):
-                agg_score += score * conversion_dict[unit]
+                agg_score += score * conversion_dict[unit.lower()]
             else:
                 # assume its just mg for other than energy
                 agg_score += score

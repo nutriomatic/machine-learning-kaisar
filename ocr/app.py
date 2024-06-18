@@ -3,6 +3,7 @@ from core.main import core_ocr
 from core.utils import *
 import skimage
 import os
+from ultralytics import YOLO
 
 # initialize the app
 app = Flask(__name__)
@@ -36,8 +37,6 @@ def ocr_endpoint():
             return jsonify({"error": f"Image failed to load: {e}"}), 500
 
         try:
-            # load the nutrition label detection model
-            model_path = os.path.join(dirname, "core/models/detect-nutrition-label.pt")
             # load the nutrients list text
             nutrients_txt_path = os.path.join(dirname, "core/data/nutrients.txt")
             # load local tessdata_dir
@@ -46,7 +45,7 @@ def ocr_endpoint():
             try:
                 # run the ocr
                 prediction = core_ocr(
-                    image, model_path, tessdata_dir, nutrients_txt_path, debug=True
+                    image, model, tessdata_dir, nutrients_txt_path, debug=True
                 )
 
                 # return the successfully read nutrition labels
@@ -76,6 +75,13 @@ def ocr_endpoint():
 
 
 if __name__ == "__main__":
+    # get current dir
+    dirname = os.path.dirname(os.path.realpath(__file__))
+
+    # load the model after application starts
+    model = YOLO(os.path.join(dirname, "core/models/detect-nutrition-label.pt"))
+    print("Model loaded!")
+
     # run in local dev, and set debug to True
     # port is running on default, 5000
     app.run(debug=True, host="0.0.0.0")
