@@ -2,6 +2,14 @@
 
 This repository contains a project that scans nutrition labels from food and beverage products, reads the nutritional information, and outputs a grade for the product. Additionally, it includes models to predict weight categories and estimate daily calorie needs. The primary goal of this project is to assist users in making healthier dietary choices by providing an easy-to-use tool for analyzing the nutritional content of food and beverage products. By offering insights into the healthiness of these products and personalized recommendations based on individual data, the project aims to promote better nutrition and overall well-being.
 
+## Outline
+
+- [Overview](#overview)
+- [Features](#features)
+- [Installation](#installation)
+- [Directory Structure](#directory-structure)
+- [Contributor](#contributions)
+
 ## Project Description
 
 This project is designed to help users make informed decisions about their diet by providing two key functionalities:
@@ -13,7 +21,7 @@ This project is designed to help users make informed decisions about their diet 
    - **Weight Prediction Model**: Predicts the user's weight category based on input data.
    - **Calorie Estimation Model**: Estimates the daily calorie needs of the user.
      
-## Overview
+### Overview
 
 2. Weight Category Prediction and Calorie Estimation
 ![Screenshot (2005)](https://github.com/nutriomatic/machine-learning-kaisar/assets/105763198/ffcdc0d9-9728-4b83-8e17-3d00712307ba)
@@ -114,7 +122,7 @@ This feature provides a model to classify weight categories based on input data.
   - `requirements.txt`: List of dependencies for this feature.
   - `weight_model.pkl`: Pre-trained model for weight classification.
 
-## Common Installation
+## Installation
 
 To install all the dependencies for the entire project, you can run the following command in the root directory:
 
@@ -123,6 +131,7 @@ pip install -r requirements.txt
 ```
 
 ## Directory Structure
+```bash
 .
 ├── feat
 │   ├── grade_prediction
@@ -139,32 +148,8 @@ pip install -r requirements.txt
 │       └── weight_model.pkl
 ├── requirements.txt
 └── README.md
+```
 
 ## Contributions
 
 Contributions are welcome! Please fork the repository and submit a pull request with your improvements or new features.
-
-## License
-
-MIT License
-
-Copyright (c) [2024] [Nutri-O-Matic]
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
