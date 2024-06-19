@@ -1,0 +1,7 @@
+NumPy
+Pandas
+TensorFlow
+Seaborn
+Matplotlib
+Scikit-learn
+Joblib
