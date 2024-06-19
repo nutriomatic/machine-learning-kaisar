@@ -23,7 +23,7 @@ This project is designed to help users make informed decisions about their diet 
      
 ### Overview
 
-2. Weight Category Prediction and Calorie Estimation
+2. Weight Category Prediction and Calorie Estimation (https://huggingface.co/spaces/rulelulu/weight_body_classification)
 ![Screenshot (2005)](https://github.com/nutriomatic/machine-learning-kaisar/assets/105763198/ffcdc0d9-9728-4b83-8e17-3d00712307ba)
 ![Screenshot (2006)](https://github.com/nutriomatic/machine-learning-kaisar/assets/105763198/cba47b42-0954-433a-b832-7b0564968c88)
 ![Screenshot (2007)](https://github.com/nutriomatic/machine-learning-kaisar/assets/105763198/9c1a9e06-79ad-4b9a-88f3-97c30df36fb5)
