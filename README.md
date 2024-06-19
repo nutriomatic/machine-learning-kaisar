@@ -143,8 +143,9 @@ pip install -r requirements.txt
 │   │   ├── requirements.txt
 │   │   └── sample_image.png
 │   └── weight_class
-│       ├── weight_class.py
+│       ├── app.py
 │       ├── requirements.txt
+│       ├── model_new.h5
 │       └── weight_model.pkl
 ├── requirements.txt
 └── README.md
