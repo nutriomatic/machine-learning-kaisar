@@ -1,0 +1,5 @@
+Pandas version: 2.0.3
+TensorFlow version: 2.15.0
+Seaborn version: 0.13.1
+Matplotlib version: 3.7.1
+Python 3.10.12
