@@ -2,4 +2,9 @@ NumPy version: 1.25.2
 Pandas version: 2.0.3
 TensorFlow version: 2.15.0
 Seaborn version: 0.13.1
+<<<<<<< HEAD
 Matplotlib version: 3.7.1
+=======
+Matplotlib version: 3.7.1
+Python 3.10.12
+>>>>>>> 4937808d32c4a6312e9a4ac8abb18dd5e6b4d74e

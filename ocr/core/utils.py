@@ -1,12 +1,9 @@
 import re
-import os
-from dotenv import load_dotenv
-from roboflow import Roboflow
-from ultralytics import YOLO
 import cv2
 from PIL import Image, ImageEnhance
 import numpy as np
 import pytesseract
+from pytesseract import Output
 import itertools
 
 
@@ -20,6 +17,11 @@ def cropAndResize(image, coord: tuple, padding=0):
     img_height = image.shape[0]
 
     x1, y1, x2, y2 = coord
+
+    # if nutrition label detection model doesnt detect the nutrition label,
+    # dont crop the image
+    if (x1, y1, x2, y2) == (0, 0, 0, 0):
+        x1, y1, x2, y2 = 0, 0, img_width, img_height
 
     # if padding != 0, add a little bit of extra space around bounding box
     modified_coordinates = {
@@ -162,24 +164,14 @@ def to_nutritional_dict(label_value_list: list):
     return nutritional_dict
 
 
-def get_model(path: str):
-    return YOLO(path)
-
-
 # get bounding boxes from prediction result
-def get_bounding_boxes(prediction: list, withSize=False):
+def get_bounding_boxes(prediction: list):
     if len(prediction) == 0:
         return 0, 0, 0, 0
 
     nutrition_label = prediction[0]  # assume only one prediction
 
     x1, y1, x2, y2 = nutrition_label.boxes.xyxy.tolist()[0]
-
-    width = abs(x2 - x1)  # width can be calculated as abs(x2 - x1)
-    height = abs(y2 - y1)  # height can be calculated as abs(y2 - y1)
-
-    if withSize:
-        return x1, y1, x2, y2, width, height
 
     return x1, y1, x2, y2
 
@@ -230,7 +222,7 @@ def change_to_percentage(text):
 
 # removes all the unnecessary noise from a string
 def clean_string(string):
-    pattern = "[\|\*\_'\—\-\{}]".format('"')
+    pattern = r"[\|\*\_'\—\-\{}]".format('"')
 
     text = change_to_g(string)
     text = change_to_percentage(text)
@@ -250,7 +242,7 @@ def clean_string(string):
     text = re.sub("Okcal", "0kcal", text)
     text = re.sub("Okkal", "0kkal", text)
 
-    text = re.sub("(?<=\d) (?=\w)", "", text)
+    text = re.sub(r"(?<=\d) (?=\w)", "", text)
 
     text = text.strip()
     return text
@@ -258,10 +250,10 @@ def clean_string(string):
 
 # separate the unit from its value. (eg. '24g' to '24' and 'g')
 def separate_unit(string):
-    r1 = re.compile("(\d+[\.\,']?\d*)([a-zA-Z]+)")
+    r1 = re.compile(r"(\d+[\.\,']?\d*)([a-zA-Z]+)")
     m1 = r1.match(string)
 
-    r2 = re.compile("(\d+[\.\,']?\d*)")
+    r2 = re.compile(r"(\d+[\.\,']?\d*)")
     m2 = r2.match(string)
 
     if m1:
@@ -272,21 +264,20 @@ def separate_unit(string):
         return ""
 
 
-# load roboflow project and download dataset to download_path
-def download_dataset(
-    download_path: str, project_name: str, version: int, model_format: str
-):
-    load_dotenv()
-    ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
+# # load roboflow project and download dataset to download_path
+# def download_dataset(
+#     download_path: str, project_name: str, version: int, model_format: str
+# ):
+#     load_dotenv()
 
-    rf = Roboflow(api_key=ROBOFLOW_API_KEY, model_format=model_format)
+#     rf = Roboflow(api_key=ROBOFLOW_API_KEY, model_format=model_format)
 
-    # this won't download when location folder isn't empty
-    rf.workspace().project(project_name).version(version).download(
-        location=download_path
-    )
+#     # this won't download when location folder isn't empty
+#     rf.workspace().project(project_name).version(version).download(
+#         location=download_path
+#     )
 
-    return
+#     return
 
 
 def preprocess_ocr_reading(ocr_reading: str):
@@ -356,3 +347,59 @@ def correct_readings(input):
         input_copy.append(line)
 
     return input_copy
+
+
+def detect_orientation(image):
+    results = pytesseract.image_to_osd(image, output_type=Output.DICT)
+    return results
+
+
+def rotateImage(image, angle):
+    # credits to https://stackoverflow.com/a/47248339
+    size_reverse = np.array(image.shape[1::-1])  # swap x with y
+    M = cv2.getRotationMatrix2D(tuple(size_reverse / 2.0), angle, 1.0)
+    MM = np.absolute(M[:, :2])
+    size_new = MM @ size_reverse
+    M[:, -1] += (size_new - size_reverse) / 2.0
+    return cv2.warpAffine(image, M, tuple(size_new.astype(int)))
+
+
+def add_element(dict, key, value):
+    if key not in dict:
+        dict[key] = 0
+    dict[key] += value
+
+
+def normalize_units(nutritional_dict: dict[str, list]):
+    # convert to g
+    conversion_dict = {
+        "kkal": 0.12959782,
+        "kcal": 0.12959782,
+        "mg": 0.001,
+        "J": 0.23890295761862,
+        "j": 0.23890295761862,
+        "joule": 0.23890295761862,
+        "Joule": 0.23890295761862,
+        "kJ": 238.90295761862,
+        "kj": 238.90295761862,
+        # add more
+    }
+
+    converted_dict = {}
+    keys = list(nutritional_dict.keys())
+    for nutritional_value_key in keys:
+        nutritional_value = nutritional_dict[nutritional_value_key]
+        agg_score = 0
+        for score, unit in nutritional_value:
+            # keep using kkal/kcal for energi
+            if nutritional_value_key != "energi" and unit.lower() in list(
+                conversion_dict.keys()
+            ):
+                agg_score += score * conversion_dict[unit.lower()]
+            else:
+                # assume its just mg for other than energy
+                agg_score += score
+
+        add_element(converted_dict, nutritional_value_key, agg_score)
+
+    return converted_dict

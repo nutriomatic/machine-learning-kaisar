@@ -237,5 +237,5 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 # Datasets
-data/datasets
-data/tf-record-datasets
+core/data/datasets
+core/data/tf-record-datasets
