@@ -12,6 +12,53 @@ def ocr(image, tessdata_dir, psm=11):
     return pytesseract.image_to_string(image, lang="ind", config=config)
 
 
+# IMAGE PREPROCESSING RELATED
+def to_grayscale(image):
+    return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+
+def to_black_and_white(grayscale_image):
+    thresh, im_bw = cv2.threshold(grayscale_image, 117, 255, cv2.THRESH_BINARY)
+    return im_bw
+
+
+def noise_removal(black_and_white_image):
+    kernel = np.ones((1, 1), np.uint8)
+    image = cv2.dilate(black_and_white_image, kernel, iterations=1)
+    image = cv2.erode(image, kernel, iterations=1)
+    image = cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel)
+    image = cv2.medianBlur(image, 3)
+
+    return image
+
+
+def thicken_font(denoised_image):
+    image = cv2.bitwise_not(denoised_image)
+    kernel = np.ones((2, 2), np.uint8)
+    image = cv2.dilate(image, kernel, iterations=1)
+    image = cv2.bitwise_not(image)
+
+    return image
+
+
+def thinner_font(denoised_image):
+    image = cv2.bitwise_not(denoised_image)
+    kernel = np.ones((1, 1), np.uint8)
+    image = cv2.erode(image, kernel, iterations=1)
+    image = cv2.bitwise_not(image)
+
+    return image
+
+
+def make_white_border(denoised_image):
+    color = [255, 255, 255]
+    top, bottom, left, right = [150] * 4
+
+    return cv2.copyMakeBorder(
+        denoised_image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color
+    )
+
+
 def cropAndResize(image, coord: tuple, padding=0):
     img_width = image.shape[1]
     img_height = image.shape[0]
@@ -37,40 +84,24 @@ def cropAndResize(image, coord: tuple, padding=0):
         modified_coordinates["x1"] : modified_coordinates["x2"],
     ]
 
-    return cv2.resize(
-        cropped,
-        (
-            abs(modified_coordinates["x2"] - modified_coordinates["x1"]),
-            abs(modified_coordinates["y2"] - modified_coordinates["y1"]),
-        ),
-        fx=0.1,
-        fy=0.1,
+    return cropped
+
+
+def preprocess_for_ocr(image_cropped, with_noise_removal=True):
+    image_orientation = detect_orientation(image_cropped)
+    corrected_orientation = rotateImage(
+        image_cropped, image_orientation["orientation"] - 360
     )
+    grayscale_image = to_grayscale(corrected_orientation)
+    black_and_white_image = to_black_and_white(grayscale_image)
 
+    if with_noise_removal:
+        denoised_image = noise_removal(black_and_white_image)
+        white_bordered_image = make_white_border(denoised_image)
+    else:
+        white_bordered_image = make_white_border(black_and_white_image)
 
-def preprocess_for_ocr(img, enhance=1):
-    if enhance > 1:
-        img = Image.fromarray(img)
-
-        contrast = ImageEnhance.Contrast(img)
-
-        img = contrast.enhance(enhance)
-
-        img = np.asarray(img)
-
-    # img = cv2.fastNlMeansDenoisingColored(img, None, 10, 10, 7, 15)
-
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-
-    # img = remove_lines(img)
-
-    # img = cv2.GaussianBlur(img, (5, 5), 0)
-
-    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-
-    return img
+    return white_bordered_image
 
 
 # make a list from the nutrient dictionary
@@ -87,33 +118,39 @@ def make_list(file_path):
 # convert OCR readings to nutritional dictionary
 def to_nutritional_dict(label_value_list: list):
     nutritional_dict = {
+        "takaran": [],
         "sajian": [],
         "energi": [],
         "karbohidrat": [],
         "gula": [],
         "protein": [],
-        "vitamin": [],
         "lemak": [],
+        "lemak_jenuh": [],
         "garam": [],
-        "kalori": [],
         "serat": [],
-        "kolesterol": [],
-        "mineral": [],
     }
 
     for label, valueWithUnit in label_value_list:
-        label = label.lower()
-
-        if type(valueWithUnit) == float:
+        try:
+            label = label.lower()
+            value, unit = valueWithUnit
+        except:
             continue
 
-        if type(valueWithUnit) == str:
-            continue
+        sajian_keywords = [
+            "per",
+            "kemasan",
+            "container",
+        ]
 
-        value, unit = valueWithUnit
+        takaran_keywords = ["takaran", "size"]
 
-        if ("sajian" in label) or ("serving" in label):
-            nutritional_dict["sajian"].append((value, unit))
+        if ("saji" in label) or ("serving" in label):
+            if any(keyword in label.lower() for keyword in sajian_keywords):
+                nutritional_dict["sajian"].append((value, unit))
+
+            if any(keyword in label.lower() for keyword in takaran_keywords):
+                nutritional_dict["takaran"].append((value, unit))
 
         if ("energi" in label) or ("energy" in label):
             nutritional_dict["energi"].append((value, unit))
@@ -127,11 +164,14 @@ def to_nutritional_dict(label_value_list: list):
         if "protein" in label:
             nutritional_dict["protein"].append((value, unit))
 
-        if "vitamin" in label:
-            nutritional_dict["vitamin"].append((value, unit))
-
         if ("lemak" in label) or ("fat" in label):
-            nutritional_dict["lemak"].append((value, unit))
+            if "total" in label:
+                nutritional_dict["lemak"] = [(value, unit)]
+            else:
+                if ("jenuh" in label) or ("saturated" in label):
+                    nutritional_dict["lemak_jenuh"].append((value, unit))
+                else:
+                    nutritional_dict["lemak"].append((value, unit))
 
         if (
             ("garam" in label)
@@ -141,25 +181,8 @@ def to_nutritional_dict(label_value_list: list):
         ):
             nutritional_dict["garam"].append((value, unit))
 
-        if ("kalori" in label) or ("calorie" in label) or ("calories" in label):
-            nutritional_dict["kalori"].append((value, unit))
-
         if ("serat" in label) or ("fiber" in label) or ("fibers" in label):
             nutritional_dict["serat"].append((value, unit))
-
-        if ("kolesterol" in label) or ("cholesterol" in label):
-            nutritional_dict["kolesterol"].append((value, unit))
-
-        if (
-            ("mineral" in label)
-            or ("kalsium" in label)
-            or ("kalium" in label)
-            or ("calcium" in label)
-            or ("iron" in label)
-            or ("besi" in label)
-            or ("potassium" in label)
-        ):
-            nutritional_dict["mineral"].append((value, unit))
 
     return nutritional_dict
 
@@ -262,22 +285,6 @@ def separate_unit(string):
         return float(m2.group(1).replace(",", ".").replace("'", "."))
     else:
         return ""
-
-
-# # load roboflow project and download dataset to download_path
-# def download_dataset(
-#     download_path: str, project_name: str, version: int, model_format: str
-# ):
-#     load_dotenv()
-
-#     rf = Roboflow(api_key=ROBOFLOW_API_KEY, model_format=model_format)
-
-#     # this won't download when location folder isn't empty
-#     rf.workspace().project(project_name).version(version).download(
-#         location=download_path
-#     )
-
-#     return
 
 
 def preprocess_ocr_reading(ocr_reading: str):
@@ -403,3 +410,12 @@ def normalize_units(nutritional_dict: dict[str, list]):
         add_element(converted_dict, nutritional_value_key, agg_score)
 
     return converted_dict
+
+
+def count_null_values(nutritional_dict: dict):
+    nulls = 0
+    for _, value in nutritional_dict.items():
+        if value == 0:
+            nulls += 1
+
+    return nulls
